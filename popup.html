@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>LOCKED</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;900&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================================
+           CSS VARIABLES
+           ============================================================ */
+        :root {
+            --primary: #38bdf8;   /* main accent colour — used on buttons, borders, highlights */
+            --bg: #000000;
+            --card: #000000;
+            --item-bg: #1f2937;
+            --text-main: #f9fafb;
+            --text-dim: #9ca3af;  /* dimmed text for descriptions and placeholders */
+            --border: rgba(255, 255, 255, 0.08);
+            --danger: #ef4444;    /* red — used for delete buttons and warnings */
+        }
+
+        /* ============================================================
+           BASE LAYOUT
+           ============================================================ */
+        html, body {
+            background: var(--bg);
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            width: 420px;   /* fixed extension popup width */
+            height: 600px;
+            margin: 0;
+            padding: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .container {
+            padding: 45px 25px 30px 25px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100%;
+        }
+
+        /* sections are hidden by default — JS adds .active to show the current one */
+        .section { display: none; width: 100%; }
+        .section.active { display: block; animation: fadeIn 0.2s ease-in-out; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ============================================================
+           TYPOGRAPHY
+           ============================================================ */
+        h2 { font-size: 26px; font-weight: 900; text-align: center; margin-bottom: 8px; letter-spacing: -0.5px; }
+        .page-desc { color: var(--text-dim); text-align: center; margin-bottom: 30px; font-size: 13px; }
+
+        /* ============================================================
+           INPUTS
+           ============================================================ */
+        input, textarea {
+            width: 100%;
+            display: block;
+            padding: 14px;
+            margin-bottom: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: #fff;
+            font-family: inherit;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        input:focus { border-color: var(--primary); outline: none; } /* highlight on focus */
+
+        /* ============================================================
+           BUTTONS
+           ============================================================ */
+        button {
+            width: 100%;
+            padding: 16px;
+            border-radius: 12px;
+            border: none;
+            background: var(--primary);
+            color: #000;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: transform 0.1s, opacity 0.1s;
+        }
+
+        button:active { transform: scale(0.98); opacity: 0.9; } /* subtle press effect */
+
+        /* back buttons are transparent so they don't compete with the main action */
+        .back-btn { 
+            background: transparent; 
+            border: 1px solid var(--border); 
+            color: var(--text-dim); 
+            margin-top: 30px;
+        }
+
+        .back-btn:hover { color: #fff; border-color: #fff; }
+
+        /* ============================================================
+           VAULT & NOTE CARDS
+           ============================================================ */
+        .vault-item, .note-item {
+            background: linear-gradient(145deg, #111827, #0f172a);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .vault-item strong, .note-item strong { color: var(--primary); font-size: 18px; display: block; margin-bottom: 4px; }
+        .vault-item span { color: var(--text-dim); font-size: 13px; display: block; margin-bottom: 12px; }
+
+        /* the row that shows the hidden password or note content */
+        .pass-row, .n-val { 
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 14px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: monospace;  /* monospace makes passwords easier to read */
+            font-size: 14px;
+            border: 1px solid rgba(255,255,255,0.05);
+            line-height: 1.5;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        .vault-actions { display: flex; gap: 8px; }
+
+        /* smaller inline buttons for show/edit — sit inside the card */
+        .t-btn { width: auto; padding: 6px 12px; font-size: 12px; margin: 0; background: #374151; color: #fff; }
+        .e-btn { width: auto; padding: 6px 12px; font-size: 12px; margin: 0; background: #374151; color: #fff; }
+
+        /* delete buttons use a faint red background to signal danger without being too loud */
+        .d-btn, .dn-btn { background: rgba(239, 68, 68, 0.1); color: var(--danger); margin-top: 0; font-size: 12px; padding: 10px; width: 100%; }
+
+        /* ============================================================
+           PASSWORD GENERATOR
+           ============================================================ */
+        .gen-display { background: #000; padding: 25px; border-radius: 12px; border: 1px solid var(--primary); margin-bottom: 20px; text-align: center; }
+        .gen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; } /* 2 column grid for the character type options */
+        .gen-opt { background: var(--item-bg); padding: 10px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); }
+
+        /* ============================================================
+           SCROLLBAR
+           ============================================================ */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- DASHBOARD — first screen the user sees -->
+    <div id="dashboard" class="section active">
+        <div style="text-align: center; margin: 40px 0;">
+            <div style="margin-bottom: 15px;">
+                <div style="margin-bottom: 10px; margin-top: -10px;">
+                    <img src="logo.png" style="width: 120px; height: 120px; object-fit: contain;" alt="LOCKED Logo">
+                </div>
+            </div>
+            <h2>LOCKED</h2>
+            <p class="page-desc">Secure local password manager</p>
+        </div>
+        <button id="goSecurity">Open Security Hub</button>
+        <button id="goTools" style="background: #1f2937; color: #fff;">Tools & Utilities</button> <!-- secondary style so it doesn't compete with the main button -->
+        <p class="page-desc">V.1.0.0</p>
+    </div>
+
+    <!-- SECURITY HUB — choose between vault or notes -->
+    <div id="securitySection" class="section">
+        <h2>Security Hub</h2>
+        <p class="page-desc">Manage your encrypted data</p>
+        <button id="goVault">Passwords & Logins</button>
+        <button id="goNotes">Secret Notes</button>
+        <button id="backFromSecurity" class="back-btn">Return Home</button>
+    </div>
+
+    <!-- VAULT — add and view saved credentials -->
+    <div id="vaultSection" class="section">
+        <h2>Passwords</h2>
+        <div style="background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--border);">
+            <input type="text" id="vaultWebsite" placeholder="Website Name">
+            <input type="text" id="vaultUser" placeholder="Username / Email">
+            <input type="password" id="vaultPass" placeholder="Password"> <!-- type="password" hides input while typing -->
+            <button id="saveVault" style="margin-bottom: 0;">Add to Vault</button>
+            <button id="backFromVault" class="back-btn">Back to Hub</button>
+        </div>
+        <input type="text" id="vaultSearch" placeholder="🔍 Search your passwords..." style="margin-bottom: 20px;">
+        <div id="vaultList"></div> <!-- vault entries get injected here by JS -->
+    </div>
+
+    <!-- NOTES — add and view encrypted notes -->
+    <div id="notesSection" class="section">
+        <h2>Secret Notes</h2>
+        <div style="background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--border);">
+            <input type="text" id="noteTitle" placeholder="Note Title">
+            <textarea id="noteContent" rows="4" placeholder="Type your secret note here..."></textarea>
+            <button id="saveNote" style="margin-bottom: 0;">Seal Note</button>
+        </div>
+        <div id="notesList"></div> <!-- note entries get injected here by JS -->
+        <button id="backFromNotes" class="back-btn">Back to Hub</button>
+    </div>
+
+    <!-- MASTER PASSWORD — shown before vault or notes, and for reset -->
+    <div id="masterPasswordSection" class="section">
+        <h2>Authentication</h2>
+        <p class="page-desc">Enter your master password to unlock</p>
+        <input type="password" id="masterPasswordInput" placeholder="Master Password">
+        <button id="masterPasswordSubmit">Unlock Database</button>
+        <p id="masterPasswordMessage" style="text-align:center; font-size:12px;"></p> <!-- success/error message appears here -->
+        <div id="resetArea" style="margin-top: 20px; text-align: center;">
+            <button id="resetMasterPassword" style="background: transparent; color: var(--text-dim); border: 1px solid var(--border); font-size: 11px; padding: 8px;">Wipe All Data & Reset</button>
+            <!-- confirmation box is hidden until the reset button is clicked -->
+            <div id="resetConfirmBox" style="display:none; margin-top: 10px;">
+                <p style="color: var(--danger); font-size: 11px; margin-bottom: 8px;">Are you 100% sure? Everything will be deleted.</p>
+                <div style="display:flex; gap:5px;">
+                   <button id="confirmResetYes" style="background: var(--danger); color: #fff; padding: 8px; font-size:12px;">Yes, Wipe</button>
+                   <button id="confirmResetNo" style="background: #374151; color: #fff; padding: 8px; font-size:12px;">No</button>
+                </div>
+            </div>
+        </div>
+        <button id="backFromMasterPassword" class="back-btn">Cancel</button>
+    </div>
+
+    <!-- TOOLS — entry point for generator and breach checker -->
+    <div id="toolsSection" class="section">
+        <h2>Tools</h2>
+        <p class="page-desc">Security testing & generation</p>
+        <button id="goGenerator">Password Generator</button>
+        <button id="goChecker">Breach Checker</button>
+        <button id="backFromTools" class="back-btn">Return Home</button>
+    </div>
+
+    <!-- GENERATOR — builds a random password based on user options -->
+    <div id="generatorSection" class="section">
+        <h2>Generator</h2>
+        <div class="gen-display">
+            <input type="text" id="generatedOutput" readonly placeholder="Result" style="border:none; background:transparent; font-size: 24px; color: var(--primary); font-family: monospace; text-align:center; width:100%; margin:0;">
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding: 0 5px;">
+            <span style="font-weight: 600;">Length</span>
+            <input type="number" id="length" value="16" style="width:70px; text-align:center; margin:0;">
+        </div>
+        <!-- character type checkboxes — all ticked by default -->
+        <div class="gen-grid">
+            <div class="gen-opt"><input type="checkbox" id="upper" checked> ABC</div>
+            <div class="gen-opt"><input type="checkbox" id="lower" checked> abc</div>
+            <div class="gen-opt"><input type="checkbox" id="nums" checked> 123</div>
+            <div class="gen-opt"><input type="checkbox" id="syms" checked> !@#</div>
+        </div>
+        <button id="generate">Generate Key</button>
+        <button id="backFromGenerator" class="back-btn">Back to Tools</button>
+    </div>
+
+    <!-- BREACH CHECKER — checks if a password appears in known data breaches -->
+    <div id="checkerSection" class="section">
+        <h2>Breach Check</h2>
+        <p class="page-desc">Checks if your password has been leaked</p>
+        <input type="password" id="password" placeholder="Password to check...">
+        <button id="check">Run Scan</button>
+        <div id="result" style="text-align:center; padding:20px; font-weight:bold; font-size: 16px;"></div> <!-- result injected here by JS -->
+        <button id="backFromChecker" class="back-btn">Back to Tools</button>
+    </div>
+
+</div>
+
+<!-- CONFIRM MODAL — reusable delete confirmation, shown over everything else -->
+<!-- displayed as flex when active so the content centres properly -->
+<div id="confirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9999; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:20px; box-sizing:border-box;">
+    <p id="confirmText" style="margin-bottom:20px; font-weight:bold; color:white;"></p>
+    <button id="confirmYes" style="background:var(--danger); color:white; padding:16px; border-radius:12px; border:none; margin-bottom:10px; cursor:pointer; width:80%; font-weight:bold;">Yes, Delete</button>
+    <button id="confirmNo" style="background:#374151; color:white; padding:16px; border-radius:12px; border:none; cursor:pointer; width:80%;">Cancel</button>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
